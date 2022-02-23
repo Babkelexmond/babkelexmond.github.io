@@ -14,4 +14,3 @@ With the second graph, at first glance you don't see a clear difference with the
 
 In short, there are similarities between these 2 playlists when you look at these 4 areas but there are definitely differences as well. These differences show that my 'liked songs' are not fully represented in my 'on-repeat' playlist but because there are also similarities, similarity is definitely possible. 
 
-test
