@@ -1,7 +1,6 @@
 ---
-title: "computationalproject"
-author: "Babke"
-date: "2/25/2022"
+title: "Portfolio Computational Musicology"
+author: "Babke Lexmond"
 output: 
   flexdashboard::flex_dashboard:
     storyboard: true
@@ -9,11 +8,20 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(spotifyr)
+library(dplyr)
+library(ggplot2)
+library(compmus)
+library(plotly)
 ```
 
 ## Computational Project Babke
 
 ### Introduction
+
+IETS OVER MIJN MUZIEKSMAAK EN UITLEGGEN DAT IK VAN ALLEBEI DE PLAYLISTS 30 NUMMERS GEBRUIK
+
 In my corpus, I would like to look at how much your 'liked songs' in spotify are represented in your 'on repeat' list. I find this an incredibly interesting part to spotify lists because my 'on repeat' list often doesn't match the songs I really like at all. I was wondering if the 'on repeat' list is compiled by indeed looking at the liked songs or if the spotify algorithm looks more at the listening time of songs.
 
 So in this corpus, I'm going to look mainly at my own "on repeat" playlist and my own "liked songs. These two lists are, surprisingly, not even close to equal. Still, I do expect to see certain artists that I 'like' a lot back in my 'on repeat' list.
@@ -21,7 +29,8 @@ So in this corpus, I'm going to look mainly at my own "on repeat" playlist and m
 Both of these lists contain all kinds of genres, artists, styles, etc. I have a very broad music taste, so it is extra interesting for me to compare my "on repeat" list with my "liked songs. With spotify users who only listen to 1 artist, I expect the two lists to be fairly similar and therefore my 'case' is more interesting.
 
 
-### Comparison
+
+### 8: Use of different variables such as tempo, valence, track popularity and mode to quickly see the structure of the playlists
 
 In this first graph you can see the 30 songs of my 'on-repeat' playlist divided between tempo, 'valence', 'track popularity' and the 'mode'. This graph gives a clear picture of how my playlist is structured. You can see here that my 'on-repeat' playlist consists mainly of major songs that are also generally upbeat (logical connection). In addition, the tempo is average and my playlist consists mainly of popular tracks. This information is important because it gives a good idea about the playlist and therefore the songs that make up the playlist.
 
@@ -31,4 +40,149 @@ With the second graph, at first glance you don't see a clear difference with the
 
 In short, there are similarities between these 2 playlists when you look at these 4 areas but there are definitely differences as well. These differences show that my 'liked songs' are not fully represented in my 'on-repeat' playlist but because there are also similarities, similarity is definitely possible.
 
+MISSCHIEN NOG COMBINATIE VAN DE TWEE GRAFIEKEN IN 1 GRAFIEK DOEN
+
+```{r test, echo=FALSE, fig.show="hold", out.width="50%"}
+
+onrepeat <- get_playlist_audio_features("", "37i9dQZF1EpeVzCvHVuGRX")
+likedsongs <- get_playlist_audio_features("", "0JqNAzixaq4NHzuZgY1q2I")
+
+playlists <-
+  bind_rows(
+    onrepeat %>% mutate(category = "Onrepeat"),
+    likedsongs %>% mutate(category = "Likedsongs")
+  )
+onrepeat %>% 
+  mutate(
+    mode = ifelse(mode==0, "Minor","Major")
+    ) %>%
+  ggplot(aes(x = valence, y = tempo, size = track.popularity, colour = mode)) + geom_point() + scale_fill_discrete("red")
+
+likedsongs %>% 
+  mutate(
+    mode = ifelse(mode==0, "Minor","Major")
+    ) %>%
+  ggplot(aes(x = valence, y = tempo, size = track.popularity, colour = mode)) + geom_point() + scale_fill_discrete("yellow")
+```
+  
+
+### 9: chromagrams
+
+In the two chromagrams below, you can see the first two songs of each playlist. So the first song in my liked songs playlist and the first song from my on repeat playlist. 
+ 
+```{r portfolio, echo=FALSE, fig.show="hold", out.width="50%"}
+remotes::install_github('jaburgoyne/compmus')
+
+Shivers <-
+  get_tidy_audio_analysis("7entdST7QGydL3yDhW03QN") %>%
+  select(segments) %>%
+  unnest(segments) %>%
+  select(start, duration, pitches)
+
+Shivers %>%
+  mutate(pitches = map(pitches, compmus_normalise, "euclidean")) %>%
+  compmus_gather_chroma() %>% 
+  ggplot(
+    aes(
+      x = start + duration / 2,
+      width = duration,
+      y = pitch_class,
+      fill = value
+    )
+  ) +
+  geom_tile() +
+  labs(x = "Time (s)", y = NULL, fill = "Magnitude", title = 'Shivers(on repeat)') +
+  theme_minimal() +
+  scale_fill_viridis_c()
+
+
+Home <-
+  get_tidy_audio_analysis("5p5P4swYu0pQv53i608AXg") %>%
+  select(segments) %>%
+  unnest(segments) %>%
+  select(start, duration, pitches)
+
+Home %>%
+  mutate(pitches = map(pitches, compmus_normalise, "euclidean")) %>%
+  compmus_gather_chroma() %>% 
+  ggplot(
+    aes(
+      x = start + duration / 2,
+      width = duration,
+      y = pitch_class,
+      fill = value
+    )
+  ) +
+  geom_tile() +
+  labs(x = "Time (s)", y = NULL, fill = "Magnitude", title = 'Home(liked songs)') +
+  theme_minimal() +
+  scale_fill_viridis_c()
+```
+
+### 10: analysis of chords 
+
+Below is the analysis of chords of the first two songs of my playlists from my corpus. Or Shivers, the first song from my "on repeat" playlist and Home, the first song from my "liked songs" playlist. 
+
+
+```{r week 10, echo=FALSE, fig.show="hold", out.width="50%"}
+
+Shivers <-
+  get_tidy_audio_analysis("7entdST7QGydL3yDhW03QN") %>%
+  compmus_align(sections, segments) %>%
+  select(sections) %>%
+  unnest(sections) %>%
+  mutate(
+    pitches =
+      map(segments,
+        compmus_summarise, pitches,
+        method = "mean", norm = "manhattan"
+      )
+  )
+
+
+Shivers %>% 
+  compmus_match_pitch_template(
+    chord_templates,         
+    method = "euclidean",  
+    norm = "manhattan"    
+  ) %>%
+  ggplot(
+    aes(x = start + duration / 2, width = duration, y = name, fill = d)
+  ) +
+  geom_tile() +
+  scale_fill_viridis_c(guide = "none") +
+  theme_minimal() +
+  labs(x = "Time (s)", y = "", title = 'Shivers(on repeat)')
+
+Home <-
+  get_tidy_audio_analysis("5p5P4swYu0pQv53i608AXg") %>%
+  compmus_align(sections, segments) %>%
+  select(sections) %>%
+  unnest(sections) %>%
+  mutate(
+    pitches =
+      map(segments,
+        compmus_summarise, pitches,
+        method = "mean", norm = "manhattan"
+      )
+  )
+
+
+Home %>% 
+  compmus_match_pitch_template(
+    key_templates,         
+    method = "euclidean",  
+    norm = "manhattan"    
+  ) %>%
+  ggplot(
+    aes(x = start + duration / 2, width = duration, y = name, fill = d)
+  ) +
+  geom_tile() +
+  scale_fill_viridis_c(guide = "none") +
+  theme_minimal() +
+  labs(x = "Time (s)", y = "", title = 'Home(liked songs)')
+```
+
 ### Conclusion
+
+to be written :))
